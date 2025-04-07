@@ -1,101 +1,64 @@
 import streamlit as st
-from utils import carregar_dados_vendas
-import plotly.express as px
 import pandas as pd
+import plotly.express as px
+import openai
+from utils import carregar_dados_vendas, gerar_resposta_ia
+
 
 def exibir():
-    st.subheader("📈 Painel Comercial - performance de vendas")
-
-    # Carregar dados
     df = carregar_dados_vendas()
+    st.title("📈 Painel Comercial - performance de vendas")
 
-    # Filtros
-    col1, col2, col3 = st.columns(3)
-    anos = sorted(df['ano'].dropna().unique())
-    meses = df['mês'].dropna().unique()
-    ufs = df['uf'].dropna().unique()
+    # Sidebar com filtros (os títulos já estão no main)
+    anos = sorted(df['Ano'].dropna().unique())
+    meses = sorted(df['Mês'].dropna().unique(), key=lambda x: pd.to_datetime(x, format='%b').month)
+    ufs = sorted(df['UF'].dropna().unique())
 
-    with col1:
-        ano_sel = st.multiselect("Ano", anos, default=anos)
-    with col2:
-        mes_sel = st.multiselect("Mês", meses, default=meses)
-    with col3:
-        uf_sel = st.multiselect("UF", ufs, default=ufs)
+    ano_sel = st.sidebar.multiselect("Ano", anos, default=anos)
+    mes_sel = st.sidebar.multiselect("Mês", meses, default=meses)
+    uf_sel = st.sidebar.multiselect("UF", ufs, default=ufs)
 
     # Aplicar filtros
     df_filtros = df[
-        df['ano'].isin(ano_sel) &
-        df['mês'].isin(mes_sel) &
-        df['uf'].isin(uf_sel)
+        df['Ano'].isin(ano_sel) &
+        df['Mês'].isin(mes_sel) &
+        df['UF'].isin(uf_sel)
     ]
 
-    # KPI de faturamento total
-    faturamento_total = df_filtros['vr.venda'].sum()
-    st.metric("💰 Faturamento Total", f"R$ {faturamento_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    # KPI de faturamento
+    st.markdown("### 💵 Faturamento Total")
+    faturamento_total = df_filtros['Vr.Venda'].sum()
+    st.metric("Total Faturado", f"R$ {faturamento_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
-    # Gráfico de faturamento ao longo do tempo
-    df_mes = df_filtros.groupby(['ano', 'mês'])['vr.venda'].sum().reset_index()
-    df_mes['período'] = df_mes['mês'] + " " + df_mes['ano'].astype(str)
-    fig = px.line(df_mes, x='período', y='vr.venda', title="Faturamento ao longo do tempo")
-    st.plotly_chart(fig, use_container_width=True)
+    # Gráfico de linha com evolução mensal
+    st.markdown("### 📊 Faturamento ao longo do tempo")
+    df_mes = df_filtros.groupby(['Ano', 'Mês'])['Vr.Venda'].sum().reset_index()
+    df_mes['Período'] = df_mes['Mês'] + " " + df_mes['Ano'].astype(str)
 
-    # -----------------------------------
-    # 🎯 Faturamento vs Meta por UF
-    # -----------------------------------
-    st.markdown("---")
-    st.subheader("🎯 Faturamento vs Meta - por UF")
-
-    meta_padrao = 50000
-    df_uf = df_filtros.groupby('uf')['vr.venda'].sum().reset_index()
-    df_uf['meta'] = meta_padrao
-    df_uf['atingido_%'] = (df_uf['vr.venda'] / df_uf['meta']) * 100
-    df_uf = df_uf.sort_values(by='vr.venda', ascending=True)
-
-    fig_bar = px.bar(
-        df_uf,
-        x='vr.venda',
-        y='uf',
-        orientation='h',
-        text='atingido_%',
-        color='atingido_%',
-        color_continuous_scale='blues',
-        labels={'vr.venda': 'Faturamento', 'uf': 'UF', 'atingido_%': '% Atingido'},
-        title='Faturamento por UF vs Meta'
+    fig_linha = px.line(
+        df_mes,
+        x='Período',
+        y='Vr.Venda',
+        title="Evolução mensal do faturamento",
+        markers=True,
+        labels={"Vr.Venda": "R$ Faturado"}
     )
-    fig_bar.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
-    fig_bar.update_layout(xaxis_title='R$ Faturado', yaxis_title='Estado (UF)')
-    st.plotly_chart(fig_bar, use_container_width=True)
+    st.plotly_chart(fig_linha, use_container_width=True)
 
-    # -----------------------------------
-    # 🧮 Resultados por mês (melhor/pior)
-    # -----------------------------------
-    st.markdown("---")
-    st.subheader("📊 Resultados ao longo do tempo")
+    # 🔍 Análise IA do gráfico acima
+    st.markdown("### 🤖 Insight da IA")
+    contexto = f"Dados de faturamento mensal: {df_mes.to_dict(orient='records')}"
+    insight = gerar_resposta_ia(contexto)
+    st.markdown(insight)
 
-    df_mensal = df_filtros.groupby('mês')['vr.venda'].sum().reset_index()
-    melhor = df_mensal.loc[df_mensal['vr.venda'].idxmax()]
-    pior = df_mensal.loc[df_mensal['vr.venda'].idxmin()]
+    pergunta = st.text_input("💬 Faça uma pergunta sobre os dados")
+    if pergunta:
+        resposta = gerar_resposta_ia(contexto + f"\nPergunta: {pergunta}")
+        st.markdown(resposta)
 
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        st.metric(f"✅ Melhor mês: {melhor['mês']}", f"R$ {melhor['vr.venda']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-    with col_m2:
-        st.metric(f"⚠️ Pior mês: {pior['mês']}", f"R$ {pior['vr.venda']:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-
-    fig2 = px.line(df_mensal, x='mês', y='vr.venda', title="Variação mensal")
-    st.plotly_chart(fig2, use_container_width=True)
-
-    # -----------------------------------
-    # 🏆 Ranking de produtos por venda
-    # -----------------------------------
-    st.markdown("---")
-    st.subheader("🏆 Ranking de produtos")
-
-    df_prod = df_filtros.groupby('descricao')['vr.venda'].sum().reset_index()
-    df_prod = df_prod.sort_values(by='vr.venda', ascending=False).head(10)
-    df_prod['vr.venda'] = df_prod['vr.venda'].map(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-
-    st.table(df_prod.rename(columns={
-        'descricao': 'Produto',
-        'vr.venda': 'Faturamento'
-    }))
+    # Tabela de ranking de produtos
+    st.markdown("### 🏆 Ranking de Produtos")
+    ranking = df_filtros.groupby('Produto')['Vr.Venda'].sum().sort_values(ascending=False).head(10).reset_index()
+    ranking.columns = ['Produto', 'Faturamento']
+    ranking['Faturamento'] = ranking['Faturamento'].map(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    st.table(ranking)

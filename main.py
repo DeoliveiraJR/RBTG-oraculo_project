@@ -1,34 +1,31 @@
 import streamlit as st
 from screens import painel_comercial, analise_pareto, mapa_estrategico, oraculo_ia
 
-# Configurações da página
+# ✅ set_page_config deve vir antes de qualquer outro comando streamlit
 st.set_page_config(
-    page_title="Oráculo-RBTG",
     layout="wide",
-    page_icon="📊"
+    page_title="Oráculo IA - RBT Medical",
+    page_icon="🔮"
 )
 
-# Sidebar - Navegação
-st.sidebar.image("./assets/logo.png", width=150)
+# Sidebar de navegação
+st.sidebar.image("./assets/logo.png", width=200)
 st.sidebar.title("🔮 Oráculo")
-pagina = st.sidebar.radio(
-    "Navegue pelos painéis:",
-    [
-        "Painel Comercial",
-        "Análise de Pareto",
-        "Mapa Estratégico (BSC)",
-        "Oráculo IA"
-    ]
-)
+st.sidebar.markdown("Navegue pelos painéis:")
 
-# Conteúdo da Página
-st.title("🔍 Dashboard Executivo Oráculo")
+opcao = st.sidebar.radio("",
+    ["Painel Comercial", "Análise de Pareto", "Mapa Estratégico (BSC)", "Oráculo IA"],
+    key="menu")
 
-if pagina == "Painel Comercial":
+st.sidebar.markdown("---")
+st.sidebar.markdown("## 🔍 Filtros")
+
+# Navegação por páginas
+if opcao == "Painel Comercial":
     painel_comercial.exibir()
-elif pagina == "Análise de Pareto":
+elif opcao == "Análise de Pareto":
     analise_pareto.exibir()
-elif pagina == "Mapa Estratégico (BSC)":
+elif opcao == "Mapa Estratégico (BSC)":
     mapa_estrategico.exibir()
-elif pagina == "Oráculo IA":
+elif opcao == "Oráculo IA":
     oraculo_ia.exibir()
