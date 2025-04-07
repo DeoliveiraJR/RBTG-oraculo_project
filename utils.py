@@ -7,15 +7,13 @@ import google.generativeai as genai
 
 # Carregar .env
 load_dotenv()
-GEMINI_API_KEY="AIzaSyCp5qA9-gGJKS128TeBpYl85Zclrxz5vNc"
-
 
 # Inicializar cliente da OpenAI (nova interface)
 # client = OpenAI(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Configure a chave de API
-# genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-genai.configure(api_key={GEMINI_API_KEY})
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# genai.configure(api_key={GEMINI_API_KEY})
 print(os.getenv("GEMINI_API_KEY"))
 
 # Caminho do dataset
