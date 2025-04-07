@@ -50,3 +50,6 @@ tzdata==2025.2
 urllib3==2.3.0
 watchdog==6.0.0
 plotly==5.21.0
+pandas
+python-dotenv
+google-generativeai
